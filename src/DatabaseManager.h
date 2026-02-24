@@ -1,6 +1,16 @@
 #pragma once
 #include <string>
 #include "sqlite3.h"
+#include <optional>
+
+struct Food {
+    std::string barcode;
+    std::string name;
+    double calories_per_100g;
+    double protein;
+    double carbs;
+    double fat;
+};
 
 class DatabaseManager {
 public:
@@ -10,6 +20,9 @@ public:
     bool open();
     void close();
     bool createTables();
+
+bool addFood(const Food& food);
+std::optional<Food> getFoodByBarcode(const std::string& barcode);
 
 private:
     std::string databasePath;
