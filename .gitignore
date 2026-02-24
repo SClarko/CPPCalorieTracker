@@ -34,5 +34,5 @@ cmake_install.cmake
 *.so
 *.dylib
 
-# Database files (optional - see note below)
+# Database files (uncomment if you want clean data each pull)
 # data/*.db
