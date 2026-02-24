@@ -8,6 +8,17 @@ DatabaseManager::~DatabaseManager() {
     close();
 }
 
+static bool execSql(sqlite3* db, const std::string& sql) {
+    char* errMsg = nullptr;
+    int rc = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
+        std::cerr << "SQL error: " << (errMsg ? errMsg : "unknown") << "\n";
+        sqlite3_free(errMsg);
+        return false;
+    }
+    return true;
+}
+
 bool DatabaseManager::open() {
     int rc = sqlite3_open(databasePath.c_str(), &db);
 
@@ -17,6 +28,7 @@ bool DatabaseManager::open() {
     }
 
     std::cout << "Database opened successfully!" << std::endl;
+    sqlite3_exec(db, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
     return true;
 }
 
@@ -46,7 +58,7 @@ bool DatabaseManager::createTables(){
         date TEXT NOT NULL,
         food_id INTEGER NOT NULL,
         grams REAL NOT NULL,
-        FOREIGN KEY(food_id) REFERENCES foods(id)
+        FOREIGN KEY(food_id) REFERENCES foods(id) ON DELETE CASCADE
         );
     )";
 
@@ -192,4 +204,64 @@ double DatabaseManager::getTotalCaloriesForDate(const std::string& date) {
 
     sqlite3_finalize(stmt);
     return total;
+}
+
+std::vector<LogEntry> DatabaseManager::getEntriesForDate(const std::string& date) {
+    const char* sql =
+        "SELECT f.name, f.barcode, l.grams, (f.calories_per_100g / 100.0) * l.grams AS calories "
+        "FROM daily_log l "
+        "JOIN foods f ON f.id = l.food_id "
+        "WHERE l.date = ? "
+        "ORDER BY l.id ASC;";
+
+    sqlite3_stmt* stmt = nullptr;
+    std::vector<LogEntry> entries;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Prepare failed: " << sqlite3_errmsg(db) << "\n";
+        return entries;
+    }
+
+    sqlite3_bind_text(stmt, 1, date.c_str(), -1, SQLITE_TRANSIENT);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        LogEntry e;
+        e.name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        e.barcode = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        e.grams = sqlite3_column_double(stmt, 2);
+        e.calories = sqlite3_column_double(stmt, 3);
+        entries.push_back(e);
+    }
+
+    sqlite3_finalize(stmt);
+    return entries;
+}
+
+bool DatabaseManager::clearAllLogs() {
+    // Delete rows
+    if (!execSql(db, "DELETE FROM daily_log;")) return false;
+    // Reset autoincrement for this table
+    execSql(db, "DELETE FROM sqlite_sequence WHERE name='daily_log';");
+    return true;
+}
+
+bool DatabaseManager::clearAllFoods() {
+    // With ON DELETE CASCADE, deleting foods will also delete dependent logs
+    if (!execSql(db, "DELETE FROM foods;")) return false;
+
+    // Reset autoincrement counters
+    execSql(db, "DELETE FROM sqlite_sequence WHERE name='foods';");
+    execSql(db, "DELETE FROM sqlite_sequence WHERE name='daily_log';");
+    return true;
+}
+
+bool DatabaseManager::factoryReset() {
+    // Wipe everything in a safe order (logs first to be safe even without cascade)
+    if (!execSql(db, "DELETE FROM daily_log;")) return false;
+    if (!execSql(db, "DELETE FROM foods;")) return false;
+
+    // Reset all sequences
+    execSql(db, "DELETE FROM sqlite_sequence WHERE name='foods';");
+    execSql(db, "DELETE FROM sqlite_sequence WHERE name='daily_log';");
+    return true;
 }

@@ -2,10 +2,39 @@
 #include <string>
 #include <limits>
 #include "DatabaseManager.h"
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 
 static void clearInput() {
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+
+static std::string todayDateISO() {
+    using namespace std::chrono;
+
+    auto now = system_clock::now();
+    std::time_t t = system_clock::to_time_t(now);
+
+    std::tm localTm{};
+    localtime_s(&localTm, &t);
+
+    std::ostringstream oss;
+    oss << std::put_time(&localTm, "%Y-%m-%d");
+    return oss.str();
+}
+
+static std::string chooseDateOrToday() {
+    std::string today = todayDateISO();
+
+    std::cout << "Date (YYYY-MM-DD) [Press Enter for " << today << "]: ";
+    std::string input;
+    std::getline(std::cin, input);
+
+    if (input.empty()) return today;
+    return input;
 }
 
 int main() {
@@ -14,7 +43,7 @@ int main() {
     if (!db.open()) return 1;
     if (!db.createTables()) return 1;
 
-    std::cout << "\n1) Add food\n2) Lookup food by barcode\n3) Log food eaten\n4) Show total calories for a date\nChoose: ";
+    std::cout << "\n1) Add food\n2) Lookup food by barcode\n3) Log food eaten\n4) Show total calories for a date\n9) Admin\nChoose: ";
     int choice = 0;
     std::cin >> choice;
 
@@ -23,6 +52,8 @@ int main() {
         std::cout << "Invalid input.\n";
         return 0;
     }
+
+    clearInput();
 
     if (choice == 1) {
         Food f{};
@@ -73,11 +104,11 @@ int main() {
         std::cout << "Calories for " << grams << "g: " << calories << " kcal\n";
     }
     else if (choice == 3){
-        std::string date, barcode;
+        std::string barcode;
+        std::string date = chooseDateOrToday();
         double grams = 0;
 
-        std::cout << "Date (YYYY-MM-DD): ";
-        std::cin >> date;
+        std::cout << "Using today's date: " << date << "\n";
 
         std::cout << "Barcode: ";
         std::cin >> barcode;
@@ -92,12 +123,62 @@ int main() {
         }
     }
     else if (choice == 4) {
-        std::string date;
-        std::cout << "Date (YYYY-MM-DD): ";
-        std::cin >> date;
+        std::string date = chooseDateOrToday();
+        std::cout << "Showing today's entries (" << date << ")\n";
+        
+        auto entries = db.getEntriesForDate(date);
+
+        if(entries.empty()) {
+            std::cout << "No entries for " << date << ".\n";
+            return 0;
+        }
+
+        std::cout << "\nEntries for " << date << ":\n";
+        for (const auto& e : entries) {
+            std::cout << "- " << e.name << " (" << e.barcode << ") " << e.grams << "g -> " << e.calories << " kcal\n";
+        }
 
         double total = db.getTotalCaloriesForDate(date);
-        std::cout << "Total calories for " << date << ": " << total << " kcal\n";
+        std::cout << "Total: " << total << " kcal\n";
+    }
+    else if (choice == 9) {
+        std::string code;
+        std::cout << "Admin code: ";
+        std::getline(std::cin, code);
+
+        if (code != "1234") {  // change this to something you like
+            std::cout << "Access denied.\n";
+            return 0;
+        }
+
+        std::cout << "\nADMIN MENU\n";
+        std::cout << "1) Clear all daily logs\n";
+        std::cout << "2) Clear all foods (also clears logs)\n";
+        std::cout << "3) Factory reset (wipe everything)\n";
+        std::cout << "Choose: ";
+
+        int adminChoice = 0;
+        std::cin >> adminChoice;
+        if (!std::cin) { clearInput(); std::cout << "Invalid input.\n"; return 0; }
+        clearInput();
+
+        // extra safety confirmation
+        std::string confirm;
+        std::cout << "Type DELETE to confirm: ";
+        std::getline(std::cin, confirm);
+
+        if (confirm != "DELETE") {
+            std::cout << "Cancelled.\n";
+            return 0;
+        }
+
+        bool ok = false;
+        if (adminChoice == 1) ok = db.clearAllLogs();
+        else if (adminChoice == 2) ok = db.clearAllFoods();
+        else if (adminChoice == 3) ok = db.factoryReset();
+        else { std::cout << "Unknown option.\n"; return 0; }
+
+        std::cout << (ok ? "Done.\n" : "Operation failed.\n");
     }
     else {
         std::cout << "Unknown option.\n";
