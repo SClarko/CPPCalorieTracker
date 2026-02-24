@@ -1,3 +1,0 @@
-C:/Users/stuar/OneDrive/Documents/Projects/CPPCalorieTracker/build/CMakeFiles/CalorieTracker.dir
-C:/Users/stuar/OneDrive/Documents/Projects/CPPCalorieTracker/build/CMakeFiles/ALL_BUILD.dir
-C:/Users/stuar/OneDrive/Documents/Projects/CPPCalorieTracker/build/CMakeFiles/ZERO_CHECK.dir

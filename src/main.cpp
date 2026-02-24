@@ -1,6 +1,14 @@
 #include <iostream>
+#include "DatabaseManager.h"
 
-int main(){
-    std::cout << "Calorie Tracker Starting..." << std::endl;
+int main() {
+    DatabaseManager db ("../data/calories.db");
+
+    if (!db.open()) {
+        return 1;
+    }
+
+    std::cout << "Setup complete.\n";
+    
     return 0;
 }
