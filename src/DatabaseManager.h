@@ -9,6 +9,7 @@ public:
 
     bool open();
     void close();
+    bool createTables();
 
 private:
     std::string databasePath;

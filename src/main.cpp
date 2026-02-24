@@ -8,7 +8,11 @@ int main() {
         return 1;
     }
 
-    std::cout << "Setup complete.\n";
+    if (!db.createTables()) {
+        return 1;
+    }
+
+    std::cout << "Database initialised successfully.\n";
     
     return 0;
 }

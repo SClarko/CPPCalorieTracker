@@ -26,3 +26,29 @@ void DatabaseManager::close() {
         db = nullptr;
     }
 }
+
+bool DatabaseManager::createTables(){
+    const std::string sql = R"(
+    CREATE TABLE IF NOT EXISTS foods (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        barcode TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        calories_per_100g REAL NOT NULL,
+        protein REAL,
+        carbs REAL,
+        fat REAL
+        );
+    )";
+
+    char* errMsg = nullptr;
+
+    int rc = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &errMsg);
+
+    if (rc != SQLITE_OK) {
+        std::cerr << "SQL error: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+        return false;
+    }
+
+    return true;
+}
