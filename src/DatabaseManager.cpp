@@ -40,9 +40,27 @@ bool DatabaseManager::createTables(){
         );
     )";
 
-    char* errMsg = nullptr;
+    const std::string logTableSql = R"(
+    CREATE TABLE IF NOT EXISTS daily_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        food_id INTEGER NOT NULL,
+        grams REAL NOT NULL,
+        FOREIGN KEY(food_id) REFERENCES foods(id)
+        );
+    )";
 
+    char* errMsg = nullptr;
     int rc = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &errMsg);
+
+    if (rc != SQLITE_OK) {
+        std::cerr << "SQL error: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+        return false;
+    }
+
+    errMsg = nullptr;
+    rc = sqlite3_exec(db, logTableSql.c_str(), nullptr, nullptr, &errMsg);
 
     if (rc != SQLITE_OK) {
         std::cerr << "SQL error: " << errMsg << std::endl;
@@ -115,4 +133,63 @@ std::optional<Food> DatabaseManager::getFoodByBarcode(const std::string& barcode
 
     sqlite3_finalize(stmt);
     return std::nullopt;
+}
+
+bool DatabaseManager::logFoodForDate(const std::string& date, const std::string& barcode, double grams) {
+
+    const char* sql =
+        "INSERT INTO daily_log (date, food_id, grams) "
+        "SELECT ?, id, ? FROM foods WHERE barcode = ?;";
+
+    sqlite3_stmt* stmt = nullptr;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Prepare failed: " << sqlite3_errmsg(db) << "\n";
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, date.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_double(stmt, 2, grams);
+    sqlite3_bind_text(stmt, 3, barcode.c_str(), -1, SQLITE_TRANSIENT);
+
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE) {
+        std::cerr << "Log insert failed: " << sqlite3_errmsg(db) << "\n";
+        return false;
+    }
+
+    // If barcode doesn't exist, INSERT...SELECT inserts 0 rows
+    if (sqlite3_changes(db) == 0) {
+        std::cerr << "No food found for that barcode.\n";
+        return false;
+    }
+
+    return true;
+}
+
+double DatabaseManager::getTotalCaloriesForDate(const std::string& date) {
+    const char* sql =
+        "SELECT COALESCE(SUM((f.calories_per_100g / 100.0) * l.grams), 0) "
+        "FROM daily_log l "
+        "JOIN foods f ON f.id = l.food_id "
+        "WHERE l.date = ?;";
+
+    sqlite3_stmt* stmt = nullptr;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Prepare failed: " << sqlite3_errmsg(db) << "\n";
+        return 0.0;
+    }
+
+    sqlite3_bind_text(stmt, 1, date.c_str(), -1, SQLITE_TRANSIENT);
+
+    double total = 0.0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        total = sqlite3_column_double(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    return total;
 }

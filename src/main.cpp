@@ -14,7 +14,7 @@ int main() {
     if (!db.open()) return 1;
     if (!db.createTables()) return 1;
 
-    std::cout << "\n1) Add food\n2) Lookup food by barcode\nChoose: ";
+    std::cout << "\n1) Add food\n2) Lookup food by barcode\n3) Log food eaten\n4) Show total calories for a date\nChoose: ";
     int choice = 0;
     std::cin >> choice;
 
@@ -71,6 +71,33 @@ int main() {
 
         double calories = (food->calories_per_100g / 100.0) * grams;
         std::cout << "Calories for " << grams << "g: " << calories << " kcal\n";
+    }
+    else if (choice == 3){
+        std::string date, barcode;
+        double grams = 0;
+
+        std::cout << "Date (YYYY-MM-DD): ";
+        std::cin >> date;
+
+        std::cout << "Barcode: ";
+        std::cin >> barcode;
+
+        std::cout << "Grams eaten: ";
+        std::cin >> grams;
+
+        if (db.logFoodForDate(date, barcode, grams)) {
+            std::cout << "Logged.\n";
+        } else {
+            std::cout << "Failed to log.\n";
+        }
+    }
+    else if (choice == 4) {
+        std::string date;
+        std::cout << "Date (YYYY-MM-DD): ";
+        std::cin >> date;
+
+        double total = db.getTotalCaloriesForDate(date);
+        std::cout << "Total calories for " << date << ": " << total << " kcal\n";
     }
     else {
         std::cout << "Unknown option.\n";

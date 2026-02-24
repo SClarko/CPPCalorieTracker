@@ -20,6 +20,8 @@ public:
     bool open();
     void close();
     bool createTables();
+    bool logFoodForDate(const std::string& date, const std::string& barcode, double grams);
+    double getTotalCaloriesForDate(const std::string& date);
 
 bool addFood(const Food& food);
 std::optional<Food> getFoodByBarcode(const std::string& barcode);
