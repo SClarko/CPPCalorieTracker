@@ -192,7 +192,7 @@ int main() {
             if (remaining > 0) {
                 std::cout << "Remaining: " << remaining << " kcal\n";
             }
-            else if (remaining > 0) {
+            else if (remaining < 0) {
                 std::cout << "Over by: " << -remaining << " kcal\n";
             }
             else {
