@@ -6,6 +6,7 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <cctype>
 
 static void clearInput() {
     std::cin.clear();
@@ -26,15 +27,54 @@ static std::string todayDateISO() {
     return oss.str();
 }
 
+static bool isLeapYear(int y) {
+    return (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0);
+}
+
+static int daysInMonth(int y, int m) {
+    static const int days[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+    if (m == 2) return isLeapYear(y) ? 29 : 28;
+    return days[m - 1];
+}
+
+static bool isValidISODate(const std::string& s) {
+    // Format: YYYY-MM-DD (length 10, digits and dashes in right spots)
+    if (s.size() != 10) return false;
+    for (int i = 0; i < 10; ++i) {
+        if (i == 4 || i == 7) {
+            if (s[i] != '-') return false;
+        } else {
+            if (!std::isdigit(static_cast<unsigned char>(s[i]))) return false;
+        }
+    }
+
+    int y = std::stoi(s.substr(0, 4));
+    int m = std::stoi(s.substr(5, 2));
+    int d = std::stoi(s.substr(8, 2));
+
+    if (y < 1900 || y > 2100) return false;   // reasonable bounds
+    if (m < 1 || m > 12) return false;
+
+    int dim = daysInMonth(y, m);
+    if (d < 1 || d > dim) return false;
+
+    return true;
+}
+
 static std::string chooseDateOrToday() {
-    std::string today = todayDateISO();
+    const std::string today = todayDateISO();
 
-    std::cout << "Date (YYYY-MM-DD) [Press Enter for " << today << "]: ";
-    std::string input;
-    std::getline(std::cin, input);
+    while (true) {
+        std::cout << "Date (YYYY-MM-DD) [press Enter for " << today << "]: ";
+        std::string input;
+        std::getline(std::cin, input);
 
-    if (input.empty()) return today;
-    return input;
+        if (input.empty()) return today;
+
+        if (isValidISODate(input)) return input;
+
+        std::cout << "Invalid date. Please use YYYY-MM-DD (e.g. 2026-02-24).\n";
+    }
 }
 
 int main() {
