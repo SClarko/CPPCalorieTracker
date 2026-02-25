@@ -36,6 +36,8 @@ public:
     bool clearAllLogs();
     bool clearAllFoods();
     bool factoryReset();
+    bool setDailyGoal(double goal);
+    double getDailyGoal();
 
 private:
     std::string databasePath;

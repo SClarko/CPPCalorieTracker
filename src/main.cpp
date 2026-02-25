@@ -83,7 +83,7 @@ int main() {
     if (!db.open()) return 1;
     if (!db.createTables()) return 1;
 
-    std::cout << "\n1) Add food\n2) Lookup food by barcode\n3) Log food eaten\n4) Show total calories for a date\n9) Admin\nChoose: ";
+    std::cout << "\n1) Add food\n2) Lookup food by barcode\n3) Log food eaten\n4) Show total calories for a date\n5) Set daily calorie goal\n9) Admin\nChoose: ";
     int choice = 0;
     std::cin >> choice;
 
@@ -180,6 +180,36 @@ int main() {
 
         double total = db.getTotalCaloriesForDate(date);
         std::cout << "Total: " << total << " kcal\n";
+
+        double goal = db.getDailyGoal();
+
+        if (goal > 0) {
+            double remaining = goal - total;
+
+            std::cout << "Goal: " << goal << " kcal\n";
+            std::cout << "Consumed: " << total << " kcal\n";
+
+            if (remaining > 0) {
+                std::cout << "Remaining: " << remaining << " kcal\n";
+            }
+            else if (remaining > 0) {
+                std::cout << "Over by: " << -remaining << " kcal\n";
+            }
+            else {
+                std::cout << "Exactly on target.\n";
+            }
+        }
+    }
+    else if (choice == 5) {
+        double goal;
+        std::cout << "Enter daily calorie goal: ";
+        std::cin >> goal;
+
+        if (db.setDailyGoal(goal)) {
+            std::cout << "Goal set.\n";
+        } else {
+            std::cout << "Failed to set goal.\n";
+        }
     }
     else if (choice == 9) {
         std::string code;

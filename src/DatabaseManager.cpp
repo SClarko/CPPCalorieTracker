@@ -62,6 +62,13 @@ bool DatabaseManager::createTables(){
         );
     )";
 
+    const std::string settingsTable = R"(
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+        );
+    )";
+
     char* errMsg = nullptr;
     int rc = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &errMsg);
 
@@ -73,6 +80,15 @@ bool DatabaseManager::createTables(){
 
     errMsg = nullptr;
     rc = sqlite3_exec(db, logTableSql.c_str(), nullptr, nullptr, &errMsg);
+
+    if (rc != SQLITE_OK) {
+        std::cerr << "SQL error: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+        return false;
+    }
+
+    errMsg = nullptr;
+    rc = sqlite3_exec(db, settingsTable.c_str(), nullptr, nullptr, &errMsg);
 
     if (rc != SQLITE_OK) {
         std::cerr << "SQL error: " << errMsg << std::endl;
@@ -264,4 +280,40 @@ bool DatabaseManager::factoryReset() {
     execSql(db, "DELETE FROM sqlite_sequence WHERE name='foods';");
     execSql(db, "DELETE FROM sqlite_sequence WHERE name='daily_log';");
     return true;
+}
+
+bool DatabaseManager::setDailyGoal(double goal) {
+    const char* sql =
+        "INSERT INTO settings (key, value) VALUES ('daily_goal', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value;";
+
+    sqlite3_stmt* stmt = nullptr;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return false;
+
+    sqlite3_bind_double(stmt, 1, goal);
+
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    return rc == SQLITE_DONE;
+}
+
+double DatabaseManager::getDailyGoal() {
+    const char* sql =
+        "SELECT value FROM settings WHERE key = 'daily_goal';";
+
+    sqlite3_stmt* stmt = nullptr;
+    double goal = 0.0;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return 0.0;
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        goal = sqlite3_column_double(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    return goal;
 }
